@@ -14,7 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'description' => sanitizeInput($_POST['description'] ?? ''),
         'price' => floatval($_POST['price'] ?? 0),
         'duration_weeks' => intval($_POST['duration_weeks'] ?? 0),
-        'level' => sanitizeInput($_POST['level'] ?? 'beginner')
+        'level' => sanitizeInput($_POST['level'] ?? 'beginner'),
+        'is_free' => isset($_POST['is_free']) ? 1 : 0
     ];
     
     // Валідація
@@ -26,8 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Введіть опис курсу';
     }
     
-    if ($formData['price'] <= 0) {
-        $errors[] = 'Вартість повинна бути більше 0';
+    // Якщо курс не безкоштовний, вартість повинна бути більше 0
+    if (!$formData['is_free'] && $formData['price'] <= 0) {
+        $errors[] = 'Вартість повинна бути більше 0 або позначте курс як безкоштовний';
     }
     
     if ($formData['duration_weeks'] <= 0) {
@@ -41,15 +43,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Якщо немає помилок, створюємо курс
     if (empty($errors)) {
         try {
+            // Якщо курс безкоштовний, встановлюємо ціну 0
+            if ($formData['is_free']) {
+                $formData['price'] = 0;
+            }
+            
             $stmt = $db->prepare("
-                INSERT INTO courses (title, description, price, duration_weeks, level, trainer_id, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
+                INSERT INTO courses (title, description, price, is_free, duration_weeks, level, trainer_id, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
             ");
             
             $stmt->execute([
                 $formData['title'],
                 $formData['description'],
                 $formData['price'],
+                $formData['is_free'],
                 $formData['duration_weeks'],
                 $formData['level'],
                 $trainerId
@@ -157,6 +165,31 @@ include '../includes/header.php';
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 20px;
+    }
+    
+    .checkbox-wrapper {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    
+    .checkbox-label {
+        font-weight: 600;
+        color: #333;
+        cursor: pointer;
     }
     
     .level-options {
@@ -302,12 +335,22 @@ include '../includes/header.php';
             <div class="form-section">
                 <h2 class="form-section-title">Деталі курсу</h2>
                 
+                <div class="checkbox-wrapper">
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="is_free" id="is_free" 
+                               <?= ($formData['is_free'] ?? 0) ? 'checked' : '' ?>
+                               onchange="togglePriceField()">
+                        <label for="is_free" class="checkbox-label">🎁 Зробити курс безкоштовним</label>
+                    </div>
+                    <div class="form-help" style="margin-left: 30px;">Якщо курс безкоштовний, учні зможуть записатися без оплати</div>
+                </div>
+                
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label required">Вартість (грн)</label>
-                        <input type="number" name="price" class="form-input" 
+                    <div class="form-group" id="price-group">
+                        <label class="form-label" id="price-label">Вартість (грн)</label>
+                        <input type="number" name="price" id="price-input" class="form-input" 
                                value="<?= htmlspecialchars($formData['price'] ?? '') ?>"
-                               min="0" step="0.01" placeholder="1500.00" required>
+                               min="0" step="0.01" placeholder="1500.00">
                         <div class="form-help">Вартість курсу в гривнях</div>
                     </div>
                     
@@ -363,5 +406,29 @@ include '../includes/header.php';
         </form>
     </div>
 </div>
+
+<script>
+function togglePriceField() {
+    const isFree = document.getElementById('is_free').checked;
+    const priceInput = document.getElementById('price-input');
+    const priceLabel = document.getElementById('price-label');
+    
+    if (isFree) {
+        priceInput.value = '0';
+        priceInput.disabled = true;
+        priceInput.style.opacity = '0.5';
+        priceLabel.textContent = 'Вартість (безкоштовно)';
+    } else {
+        priceInput.disabled = false;
+        priceInput.style.opacity = '1';
+        priceLabel.textContent = 'Вартість (грн)';
+    }
+}
+
+// Викликаємо при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    togglePriceField();
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>

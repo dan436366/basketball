@@ -371,7 +371,7 @@ include 'includes/header.php';
                 </div>
                 <div class="info-item">
                     <span class="info-label">Телефон:</span>
-                    <span class="info-value"><?= $user['phone'] ? htmlspecialchars($user['phone']) : 'Не вказано' ?></span>
+                    <span class="info-value"><?= !empty($user['phone']) ? htmlspecialchars($user['phone']) : 'Не вказано' ?></span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Дата реєстрації:</span>
@@ -414,7 +414,7 @@ include 'includes/header.php';
                     <div class="form-group">
                         <label class="form-label">Телефон</label>
                         <input type="tel" name="phone" class="form-input" 
-                               value="<?= htmlspecialchars($user['phone']) ?>"
+                               value="<?= htmlspecialchars($user['phone'] ?? '') ?>"
                                placeholder="+380 (XX) XXX-XX-XX">
                     </div>
                     
@@ -422,7 +422,7 @@ include 'includes/header.php';
                     <div class="form-group">
                         <label class="form-label">Досвід (років)</label>
                         <input type="number" name="experience_years" class="form-input" 
-                               value="<?= htmlspecialchars($user['experience_years']) ?>"
+                               value="<?= htmlspecialchars($user['experience_years'] ?? '') ?>"
                                min="0" placeholder="10">
                     </div>
                     <?php endif; ?>
@@ -430,7 +430,7 @@ include 'includes/header.php';
                     <div class="form-group">
                         <label class="form-label">Про себе</label>
                         <textarea name="bio" class="form-textarea" 
-                                  placeholder="Розкажіть про себе..."><?= htmlspecialchars($user['bio']) ?></textarea>
+                                  placeholder="Розкажіть про себе..."><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
                     </div>
                     
                     <button type="submit" name="update_profile" class="btn-save">Зберегти зміни</button>

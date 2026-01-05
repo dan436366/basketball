@@ -12,10 +12,16 @@ define('DB_CHARSET', 'utf8mb4');
 define('SESSION_NAME', 'basketball_session');
 define('SESSION_LIFETIME', 3600 * 24 * 7); // 7 днів
 
+// Автоматичне визначення BASE_URL
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'];
+$scriptName = dirname($_SERVER['SCRIPT_NAME']);
+define('BASE_URL', $protocol . '://' . $host . $scriptName);
+
 // Шляхи
-define('BASE_URL', 'http://localhost/basketball');
-define('UPLOAD_DIR', __DIR__ . '/uploads/');
-define('ASSETS_DIR', __DIR__ . '/assets/');
+define('ROOT_PATH', __DIR__);
+define('UPLOAD_DIR', ROOT_PATH . '/uploads/');
+define('ASSETS_DIR', ROOT_PATH . '/assets/');
 
 // Налаштування безпеки
 define('PASSWORD_MIN_LENGTH', 6);
@@ -162,15 +168,23 @@ function uploadFile($file, $targetDir = 'uploads/', $allowedTypes = ['jpg', 'jpe
     }
     
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        return ['success' => false, 'message' => 'Помилка завантаження файлу'];
+        $errorMessages = [
+            UPLOAD_ERR_INI_SIZE => 'Файл перевищує максимальний розмір',
+            UPLOAD_ERR_FORM_SIZE => 'Файл перевищує максимальний розмір',
+            UPLOAD_ERR_PARTIAL => 'Файл завантажено частково',
+            UPLOAD_ERR_NO_FILE => 'Файл не було завантажено',
+        ];
+        return ['success' => false, 'message' => $errorMessages[$file['error']] ?? 'Помилка завантаження файлу'];
     }
     
-    if ($file['size'] > 5000000) { // 5MB
-        return ['success' => false, 'message' => 'Файл занадто великий (максимум 5MB)'];
-    }
+    // Для відео - 50MB, для зображень - 5MB
+    $isVideo = in_array(strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)), ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm']);
+    $maxSize = $isVideo ? 50000000 : 5000000; // 50MB для відео, 5MB для зображень
     
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = $finfo->file($file['tmp_name']);
+    if ($file['size'] > $maxSize) {
+        $maxSizeMB = $maxSize / 1000000;
+        return ['success' => false, 'message' => "Файл занадто великий (максимум {$maxSizeMB}MB)"];
+    }
     
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     

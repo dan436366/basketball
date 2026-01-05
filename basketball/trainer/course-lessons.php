@@ -23,6 +23,8 @@ if (!$course) {
     exit;
 }
 
+$errors = [];
+
 // Обробка додавання уроку
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'add_lesson') {
@@ -30,19 +32,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $description = sanitizeInput($_POST['description'] ?? '');
         $videoUrl = sanitizeInput($_POST['video_url'] ?? '');
         $duration = intval($_POST['duration_minutes'] ?? 0);
-        $isFree = isset($_POST['is_free']) ? 1 : 0;
         
-        if (!empty($title) && !empty($videoUrl)) {
+        $videoFile = null;
+        
+        // Обробка завантаження відеофайлу
+        if (isset($_FILES['video_file']) && $_FILES['video_file']['error'] === UPLOAD_ERR_OK) {
+            $allowedTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'];
+            $uploadResult = uploadFile($_FILES['video_file'], 'videos/', $allowedTypes);
+            
+            if ($uploadResult['success']) {
+                $videoFile = $uploadResult['filename'];
+            } else {
+                $errors[] = $uploadResult['message'];
+            }
+        }
+        
+        // Перевірка: або файл, або URL
+        if (empty($videoFile) && empty($videoUrl)) {
+            $errors[] = 'Завантажте відеофайл або вкажіть URL';
+        }
+        
+        if (!empty($title) && empty($errors)) {
             // Визначення порядкового номера
             $stmt = $db->prepare("SELECT MAX(order_number) as max_order FROM video_lessons WHERE course_id = ?");
             $stmt->execute([$courseId]);
             $maxOrder = $stmt->fetch()['max_order'] ?? 0;
             
             $stmt = $db->prepare("
-                INSERT INTO video_lessons (course_id, title, description, video_url, duration_minutes, order_number, is_free)
+                INSERT INTO video_lessons (course_id, title, description, video_url, video_file, duration_minutes, order_number)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$courseId, $title, $description, $videoUrl, $duration, $maxOrder + 1, $isFree]);
+            $stmt->execute([
+                $courseId, 
+                $title, 
+                $description, 
+                $videoUrl ? $videoUrl : null, 
+                $videoFile, 
+                $duration, 
+                $maxOrder + 1
+            ]);
             
             setFlashMessage('success', 'Урок успішно додано');
             header('Location: course-lessons.php?id=' . $courseId);
@@ -50,6 +78,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     } elseif ($_POST['action'] === 'delete_lesson') {
         $lessonId = intval($_POST['lesson_id'] ?? 0);
+        
+        // Отримуємо інформацію про урок для видалення файлу
+        $stmt = $db->prepare("SELECT video_file FROM video_lessons WHERE id = ? AND course_id = ?");
+        $stmt->execute([$lessonId, $courseId]);
+        $lesson = $stmt->fetch();
+        
+        if ($lesson && $lesson['video_file']) {
+            $filePath = UPLOAD_DIR . 'videos/' . $lesson['video_file'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+        
         $stmt = $db->prepare("DELETE FROM video_lessons WHERE id = ? AND course_id = ?");
         $stmt->execute([$lessonId, $courseId]);
         
@@ -93,7 +134,7 @@ include '../includes/header.php';
     
     .main-content {
         display: grid;
-        grid-template-columns: 1fr 400px;
+        grid-template-columns: 1fr 450px;
         gap: 30px;
         margin-bottom: 60px;
     }
@@ -161,6 +202,7 @@ include '../includes/header.php';
         gap: 15px;
         color: #666;
         font-size: 0.9rem;
+        flex-wrap: wrap;
     }
     
     .lesson-description {
@@ -237,16 +279,68 @@ include '../includes/header.php';
         outline: none;
     }
     
-    .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
     }
     
-    .checkbox-group input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
+    .file-input-wrapper input[type=file] {
+        position: absolute;
+        left: -9999px;
+    }
+    
+    .file-input-label {
+        display: block;
+        padding: 10px 12px;
+        border: 2px dashed #e0e0e0;
+        border-radius: 8px;
+        text-align: center;
         cursor: pointer;
+        transition: all 0.3s;
+        background: #f8f9fa;
+    }
+    
+    .file-input-label:hover {
+        border-color: #f093fb;
+        background: #fff0f8;
+    }
+    
+    .file-input-label i {
+        margin-right: 8px;
+    }
+    
+    .file-name {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .divider {
+        text-align: center;
+        margin: 15px 0;
+        color: #999;
+        position: relative;
+    }
+    
+    .divider::before,
+    .divider::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        width: 40%;
+        height: 1px;
+        background: #e0e0e0;
+    }
+    
+    .divider::before {
+        left: 0;
+    }
+    
+    .divider::after {
+        right: 0;
     }
     
     .btn-add {
@@ -284,9 +378,28 @@ include '../includes/header.php';
         font-weight: 600;
     }
     
-    .badge-free {
-        background: #d4edda;
-        color: #155724;
+    .badge-file {
+        background: #28a745;
+        color: white;
+    }
+    
+    .badge-url {
+        background: #17a2b8;
+        color: white;
+    }
+    
+    .error-list {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .error-list ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #721c24;
     }
     
     @media (max-width: 992px) {
@@ -330,15 +443,21 @@ include '../includes/header.php';
                         <div class="lesson-info">
                             <h3 class="lesson-title">
                                 <?= htmlspecialchars($lesson['title']) ?>
-                                <?php if ($lesson['is_free']): ?>
-                                    <span class="badge badge-free">Безкоштовно</span>
+                                <?php if ($lesson['video_file']): ?>
+                                    <span class="badge badge-file">📁 Файл</span>
+                                <?php elseif ($lesson['video_url']): ?>
+                                    <span class="badge badge-url">🔗 URL</span>
                                 <?php endif; ?>
                             </h3>
                             <div class="lesson-meta">
                                 <?php if ($lesson['duration_minutes']): ?>
                                     <span>⏱️ <?= $lesson['duration_minutes'] ?> хв</span>
                                 <?php endif; ?>
-                                <span>🔗 <a href="<?= htmlspecialchars($lesson['video_url']) ?>" target="_blank">Відео</a></span>
+                                <?php if ($lesson['video_file']): ?>
+                                    <span>📁 <?= htmlspecialchars($lesson['video_file']) ?></span>
+                                <?php elseif ($lesson['video_url']): ?>
+                                    <span>🔗 <a href="<?= htmlspecialchars($lesson['video_url']) ?>" target="_blank">Відео</a></span>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -365,7 +484,17 @@ include '../includes/header.php';
         <div class="add-lesson-form">
             <h3 class="section-title">➕ Додати урок</h3>
             
-            <form method="POST">
+            <?php if (!empty($errors)): ?>
+            <div class="error-list">
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?= htmlspecialchars($error) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
+            
+            <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="add_lesson">
                 
                 <div class="form-group">
@@ -381,9 +510,24 @@ include '../includes/header.php';
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">URL відео *</label>
+                    <label class="form-label">Завантажити відеофайл</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" name="video_file" id="video_file" accept="video/*" onchange="displayFileName()">
+                        <label for="video_file" class="file-input-label">
+                            <i>📁</i> Оберіть відеофайл
+                        </label>
+                    </div>
+                    <div id="file-name" class="file-name"></div>
+                    <small class="form-help">Підтримуються: MP4, AVI, MOV, WEBM (макс. 50MB)</small>
+                </div>
+                
+                <div class="divider">або</div>
+                
+                <div class="form-group">
+                    <label class="form-label">URL відео (YouTube, Vimeo)</label>
                     <input type="url" name="video_url" class="form-input" 
-                           placeholder="https://youtube.com/watch?v=..." required>
+                           placeholder="https://youtube.com/watch?v=...">
+                    <small class="form-help">Вставте посилання на відео з YouTube або Vimeo</small>
                 </div>
                 
                 <div class="form-group">
@@ -392,19 +536,25 @@ include '../includes/header.php';
                            placeholder="15" min="0">
                 </div>
                 
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" name="is_free" id="is_free">
-                        <label for="is_free" style="margin: 0; font-weight: 500;">
-                            Безкоштовний перегляд
-                        </label>
-                    </div>
-                </div>
-                
                 <button type="submit" class="btn-add">Додати урок</button>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+function displayFileName() {
+    const input = document.getElementById('video_file');
+    const fileNameDiv = document.getElementById('file-name');
+    
+    if (input.files.length > 0) {
+        const fileName = input.files[0].name;
+        const fileSize = (input.files[0].size / 1024 / 1024).toFixed(2);
+        fileNameDiv.textContent = `Обрано: ${fileName} (${fileSize} MB)`;
+    } else {
+        fileNameDiv.textContent = '';
+    }
+}
+</script>
 
 <?php include '../includes/footer.php'; ?>
