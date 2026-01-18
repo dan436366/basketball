@@ -152,9 +152,18 @@
     </style>
 </head>
 <body>
+    <?php
+    // Визначення базового URL для посилань
+    $currentPath = $_SERVER['PHP_SELF'];
+    $isInSubfolder = (strpos($currentPath, '/student/') !== false || 
+                      strpos($currentPath, '/trainer/') !== false || 
+                      strpos($currentPath, '/admin/') !== false);
+    $urlPrefix = $isInSubfolder ? '../' : '';
+    ?>
+    
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
-            <a class="navbar-brand" href="<?= BASE_URL ?>/index.php">
+            <a class="navbar-brand" href="<?= $urlPrefix ?>index.php">
                 🏀 Basketball Learning
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -163,13 +172,13 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
-                        <a class="nav-link" href="<?= BASE_URL ?>/index.php">Головна</a>
+                        <a class="nav-link" href="<?= $urlPrefix ?>index.php">Головна</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?= BASE_URL ?>/courses.php">Курси</a>
+                        <a class="nav-link" href="<?= $urlPrefix ?>courses.php">Курси</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?= BASE_URL ?>/trainers.php">Тренери</a>
+                        <a class="nav-link" href="<?= $urlPrefix ?>trainers.php">Тренери</a>
                     </li>
                     
                     <?php if (isLoggedIn()): ?>
@@ -183,38 +192,38 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <?php if ($user['role'] === 'admin'): ?>
-                                    <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin/dashboard.php">
+                                    <li><a class="dropdown-item" href="<?= $urlPrefix ?>admin/dashboard.php">
                                         <i class="fas fa-tachometer-alt me-2"></i>Панель адміністратора
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
                                 <?php elseif ($user['role'] === 'trainer'): ?>
-                                    <li><a class="dropdown-item" href="<?= BASE_URL ?>/trainer/dashboard.php">
+                                    <li><a class="dropdown-item" href="<?= $urlPrefix ?>trainer/dashboard.php">
                                         <i class="fas fa-chalkboard-teacher me-2"></i>Мої курси
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
                                 <?php else: ?>
-                                    <li><a class="dropdown-item" href="<?= BASE_URL ?>/student/dashboard.php">
+                                    <li><a class="dropdown-item" href="<?= $urlPrefix ?>student/dashboard.php">
                                         <i class="fas fa-book-reader me-2"></i>Мої курси
                                     </a></li>
-                                    <li><a class="dropdown-item" href="<?= BASE_URL ?>/student/plans.php">
-                                        <i class="fas fa-clipboard-list me-2"></i>Плани тренувань
+                                    <li><a class="dropdown-item" href="<?= $urlPrefix ?>student/my-courses.php">
+                                        <i class="fas fa-graduation-cap me-2"></i>Навчання
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
                                 <?php endif; ?>
-                                <li><a class="dropdown-item" href="<?= BASE_URL ?>/profile.php">
+                                <li><a class="dropdown-item" href="<?= $urlPrefix ?>profile.php">
                                     <i class="fas fa-user me-2"></i>Профіль
                                 </a></li>
-                                <li><a class="dropdown-item" href="<?= BASE_URL ?>/logout.php">
+                                <li><a class="dropdown-item" href="<?= $urlPrefix ?>logout.php">
                                     <i class="fas fa-sign-out-alt me-2"></i>Вийти
                                 </a></li>
                             </ul>
                         </li>
                     <?php else: ?>
                         <li class="nav-item">
-                            <a class="nav-link" href="<?= BASE_URL ?>/login.php">Вхід</a>
+                            <a class="nav-link" href="<?= $urlPrefix ?>login.php">Вхід</a>
                         </li>
                         <li class="nav-item ms-2">
-                            <a class="btn btn-primary" href="<?= BASE_URL ?>/register.php">Реєстрація</a>
+                            <a class="btn btn-primary" href="<?= $urlPrefix ?>register.php">Реєстрація</a>
                         </li>
                     <?php endif; ?>
                 </ul>
@@ -234,4 +243,4 @@
     </div>
     <?php endif; ?>
     
-    <main style="flex: 1;"></main>
+    <main style="flex: 1;">

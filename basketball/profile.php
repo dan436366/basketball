@@ -375,7 +375,7 @@ include 'includes/header.php';
                 </div>
                 <div class="info-item">
                     <span class="info-label">Дата реєстрації:</span>
-                    <span class="info-value"><?= formatDate($user['created_at']) ?></span>
+                    <span class="info-value"><?= isset($user['created_at']) ? formatDate($user['created_at']) : 'Не вказано' ?></span>
                 </div>
             </div>
         </div>

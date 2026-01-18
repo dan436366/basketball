@@ -319,7 +319,9 @@ include 'includes/header.php';
                             <span class="rating">⭐ <?= number_format($course['avg_rating'], 1) ?></span>
                             <?php endif; ?>
                         </div>
-                        <div class="course-price"><?= formatPrice($course['price']) ?></div>
+                        <div class="course-price">
+                            <?= $course['is_free'] ? '<span style="color: #28a745;">Безкоштовно</span>' : formatPrice($course['price']) ?>
+                        </div>
                     </div>
                 </div>
             </div>

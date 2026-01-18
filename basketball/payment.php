@@ -2,6 +2,14 @@
 require_once 'config.php';
 requireLogin();
 
+// Перевірка ролі - тільки студенти можуть купувати курси
+$user = getCurrentUser();
+if ($user['role'] !== 'student') {
+    setFlashMessage('error', 'Тільки студенти можуть купувати курси');
+    header('Location: courses.php');
+    exit;
+}
+
 $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : 0;
 
 if (!$courseId) {
@@ -23,6 +31,13 @@ $course = $stmt->fetch();
 
 if (!$course) {
     header('Location: courses.php');
+    exit;
+}
+
+// Перевірка, чи курс безкоштовний
+if ($course['is_free']) {
+    setFlashMessage('info', 'Цей курс безкоштовний. Ви можете записатись без оплати.');
+    header('Location: enroll-free.php?course_id=' . $courseId);
     exit;
 }
 

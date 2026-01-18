@@ -441,7 +441,9 @@ include 'includes/header.php';
                             <?php endif; ?>
                         </div>
                         <div class="course-footer">
-                            <div class="course-price"><?= formatPrice($course['price']) ?></div>
+                            <div class="course-price">
+                                <?= $course['is_free'] ? '<span style="color: #28a745;">Безкоштовно</span>' : formatPrice($course['price']) ?>
+                            </div>
                             <a href="course.php?id=<?= $course['id'] ?>" class="btn-view-course">Детальніше</a>
                         </div>
                     </div>

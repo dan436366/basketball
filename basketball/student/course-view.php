@@ -66,52 +66,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'mark_complete') {
         $lessonId = intval($_POST['lesson_id'] ?? 0);
         
-        // Перевіряємо, чи існує запис
-        $stmt = $db->prepare("SELECT id FROM lesson_progress WHERE user_id = ? AND lesson_id = ?");
-        $stmt->execute([$userId, $lessonId]);
-        $exists = $stmt->fetch();
-        
-        if ($exists) {
-            // Оновлюємо
+        try {
+            // Перевіряємо, чи існує запис
+            $stmt = $db->prepare("SELECT id FROM lesson_progress WHERE user_id = ? AND lesson_id = ?");
+            $stmt->execute([$userId, $lessonId]);
+            $exists = $stmt->fetch();
+            
+            if ($exists) {
+                // Оновлюємо
+                $stmt = $db->prepare("
+                    UPDATE lesson_progress 
+                    SET is_completed = TRUE, completed_at = NOW() 
+                    WHERE user_id = ? AND lesson_id = ?
+                ");
+            } else {
+                // Створюємо новий запис
+                $stmt = $db->prepare("
+                    INSERT INTO lesson_progress (user_id, lesson_id, is_completed, completed_at)
+                    VALUES (?, ?, TRUE, NOW())
+                ");
+            }
+            $stmt->execute([$userId, $lessonId]);
+            
+            // Оновлюємо загальний прогрес курсу
             $stmt = $db->prepare("
-                UPDATE lesson_progress 
-                SET is_completed = TRUE, completed_at = NOW() 
-                WHERE user_id = ? AND lesson_id = ?
+                SELECT COUNT(*) as total_lessons,
+                       SUM(CASE WHEN lp.is_completed = 1 THEN 1 ELSE 0 END) as completed_lessons
+                FROM video_lessons vl
+                LEFT JOIN lesson_progress lp ON vl.id = lp.lesson_id AND lp.user_id = ?
+                WHERE vl.course_id = ?
             ");
-        } else {
-            // Створюємо новий запис
-            $stmt = $db->prepare("
-                INSERT INTO lesson_progress (user_id, lesson_id, is_completed, completed_at)
-                VALUES (?, ?, TRUE, NOW())
-            ");
-        }
-        $stmt->execute([$userId, $lessonId]);
-        
-        // Оновлюємо загальний прогрес курсу
-        $stmt = $db->prepare("
-            SELECT COUNT(*) as total_lessons,
-                   SUM(CASE WHEN lp.is_completed = 1 THEN 1 ELSE 0 END) as completed_lessons
-            FROM video_lessons vl
-            LEFT JOIN lesson_progress lp ON vl.id = lp.lesson_id AND lp.user_id = ?
-            WHERE vl.course_id = ?
-        ");
-        $stmt->execute([$userId, $courseId]);
-        $progress = $stmt->fetch();
-        
-        $totalLessons = $progress['total_lessons'];
-        $completedLessons = $progress['completed_lessons'];
-        $progressPercent = $totalLessons > 0 ? round(($completedLessons / $totalLessons) * 100) : 0;
-        
-        $stmt = $db->prepare("UPDATE enrollments SET progress = ? WHERE user_id = ? AND course_id = ?");
-        $stmt->execute([$progressPercent, $userId, $courseId]);
-        
-        if ($progressPercent >= 100) {
-            $stmt = $db->prepare("UPDATE enrollments SET completed_at = NOW() WHERE user_id = ? AND course_id = ? AND completed_at IS NULL");
             $stmt->execute([$userId, $courseId]);
+            $progress = $stmt->fetch();
+            
+            $totalLessons = $progress['total_lessons'];
+            $completedLessons = $progress['completed_lessons'];
+            $progressPercent = $totalLessons > 0 ? round(($completedLessons / $totalLessons) * 100) : 0;
+            
+            $stmt = $db->prepare("UPDATE enrollments SET progress = ? WHERE user_id = ? AND course_id = ?");
+            $stmt->execute([$progressPercent, $userId, $courseId]);
+            
+            if ($progressPercent >= 100) {
+                $stmt = $db->prepare("UPDATE enrollments SET completed_at = NOW() WHERE user_id = ? AND course_id = ? AND completed_at IS NULL");
+                $stmt->execute([$userId, $courseId]);
+            }
+            
+            echo json_encode(['success' => true, 'progress' => $progressPercent]);
+            exit;
+            
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
         }
-        
-        echo json_encode(['success' => true, 'progress' => $progressPercent]);
-        exit;
     }
 }
 
@@ -139,7 +145,7 @@ include '../includes/header.php';
     .video-container {
         position: relative;
         width: 100%;
-        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        padding-top: 56.25%;
         background: #000;
     }
     
@@ -155,6 +161,7 @@ include '../includes/header.php';
         width: 100%;
         height: 100%;
         object-fit: contain;
+        background: #000;
     }
     
     .video-placeholder {
@@ -178,8 +185,20 @@ include '../includes/header.php';
     
     .video-info {
         background: #2a2a2a;
-        padding: 25px 30px;
+        padding: 30px;
         color: white;
+    }
+    
+    .lesson-header-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 20px;
+        gap: 20px;
+    }
+    
+    .lesson-main-info {
+        flex: 1;
     }
     
     .lesson-title {
@@ -192,18 +211,23 @@ include '../includes/header.php';
         display: flex;
         gap: 25px;
         color: #aaa;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .lesson-actions-top {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 200px;
     }
     
     .lesson-description {
         color: #ccc;
         line-height: 1.6;
-        margin-bottom: 20px;
-    }
-    
-    .lesson-actions {
-        display: flex;
-        gap: 15px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #3a3a3a;
     }
     
     .btn-complete {
@@ -215,6 +239,8 @@ include '../includes/header.php';
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s;
+        width: 100%;
+        font-size: 0.95rem;
     }
     
     .btn-complete:hover {
@@ -227,6 +253,11 @@ include '../includes/header.php';
         cursor: default;
     }
     
+    .btn-complete:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    
     .btn-next {
         padding: 12px 25px;
         background: #667eea;
@@ -236,8 +267,11 @@ include '../includes/header.php';
         font-weight: 600;
         cursor: pointer;
         text-decoration: none;
-        display: inline-block;
+        display: block;
+        text-align: center;
         transition: all 0.3s;
+        width: 100%;
+        font-size: 0.95rem;
     }
     
     .btn-next:hover {
@@ -370,6 +404,14 @@ include '../includes/header.php';
         .sidebar {
             max-height: 400px;
         }
+        
+        .lesson-header-info {
+            flex-direction: column;
+        }
+        
+        .lesson-actions-top {
+            width: 100%;
+        }
     }
 </style>
 
@@ -380,17 +422,47 @@ include '../includes/header.php';
         <div class="video-container">
             <?php if ($currentLesson['video_file']): ?>
                 <!-- Локальний відеофайл -->
+                <?php
+                // Повний шлях до відео
+                $videoFile = $currentLesson['video_file'];
+                $videoPath = BASE_URL . '/uploads/videos/' . $videoFile;
+                
+                // Визначення розширення та MIME-типу
+                $videoExt = strtolower(pathinfo($videoFile, PATHINFO_EXTENSION));
+                
+                // Перевірка існування файлу
+                $fullPath = $_SERVER['DOCUMENT_ROOT'] . '/basketball/uploads/videos/' . $videoFile;
+                $fileExists = file_exists($fullPath);
+                ?>
+                
+                <?php if ($fileExists): ?>
                 <div class="video-player">
-                    <video controls controlsList="nodownload">
-                        <source src="<?= BASE_URL ?>/uploads/videos/<?= htmlspecialchars($currentLesson['video_file']) ?>" type="video/mp4">
-                        Ваш браузер не підтримує відео.
+                    <video controls preload="auto" style="width: 100%; height: 100%; background: #000;">
+                        <?php if ($videoExt === 'mp4'): ?>
+                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/mp4">
+                        <?php elseif ($videoExt === 'webm'): ?>
+                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/webm">
+                        <?php elseif ($videoExt === 'avi'): ?>
+                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/x-msvideo">
+                        <?php elseif ($videoExt === 'mov'): ?>
+                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/quicktime">
+                        <?php else: ?>
+                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/<?= $videoExt ?>">
+                        <?php endif; ?>
+                        Ваш браузер не підтримує відтворення відео.
                     </video>
                 </div>
+                <?php else: ?>
+                <div class="video-placeholder">
+                    <div class="video-placeholder-icon">⚠️</div>
+                    <p>Файл відео не знайдено на сервері</p>
+                    <small>Шлях: <?= htmlspecialchars($videoFile) ?></small>
+                </div>
+                <?php endif; ?>
             <?php elseif ($currentLesson['video_url']): ?>
-                <!-- Зовнішнє відео (YouTube, Vimeo) -->
+                <!-- Зовнішнє відео -->
                 <?php
                 $videoUrl = $currentLesson['video_url'];
-                // Визначення типу відео та формування embed URL
                 if (strpos($videoUrl, 'youtube.com') !== false || strpos($videoUrl, 'youtu.be') !== false) {
                     preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\?\/]+)/', $videoUrl, $matches);
                     $videoId = $matches[1] ?? '';
@@ -415,41 +487,46 @@ include '../includes/header.php';
         </div>
         
         <div class="video-info">
-            <h1 class="lesson-title"><?= htmlspecialchars($currentLesson['title']) ?></h1>
-            <div class="lesson-meta">
-                <span>📚 Урок <?= $currentLesson['order_number'] ?> з <?= count($lessons) ?></span>
-                <?php if ($currentLesson['duration_minutes']): ?>
-                <span>⏱️ <?= $currentLesson['duration_minutes'] ?> хвилин</span>
-                <?php endif; ?>
-                <?php if ($currentLesson['is_completed']): ?>
-                <span style="color: #28a745;">✅ Завершено</span>
-                <?php endif; ?>
+            <div class="lesson-header-info">
+                <div class="lesson-main-info">
+                    <h1 class="lesson-title"><?= htmlspecialchars($currentLesson['title']) ?></h1>
+                    <div class="lesson-meta">
+                        <span>📚 Урок <?= $currentLesson['order_number'] ?> з <?= count($lessons) ?></span>
+                        <?php if ($currentLesson['duration_minutes']): ?>
+                        <span>⏱️ <?= $currentLesson['duration_minutes'] ?> хвилин</span>
+                        <?php endif; ?>
+                        <?php if ($currentLesson['is_completed']): ?>
+                        <span style="color: #28a745;">✅ Завершено</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="lesson-actions-top">
+                    <button class="btn-complete <?= $currentLesson['is_completed'] ? 'completed' : '' ?>" 
+                            onclick="markAsCompleted(<?= $currentLesson['id'] ?>)"
+                            id="complete-btn"
+                            <?= $currentLesson['is_completed'] ? 'disabled' : '' ?>>
+                        <?= $currentLesson['is_completed'] ? '✅ Завершено' : '✓ Відмітити як пройдений' ?>
+                    </button>
+                    
+                    <?php
+                    $nextLesson = $lessons[$currentLessonIndex + 1] ?? null;
+                    ?>
+                    
+                    <?php if ($nextLesson): ?>
+                    <a href="?id=<?= $courseId ?>&lesson=<?= $nextLesson['id'] ?>" class="btn-next">
+                        Наступний урок →
+                    </a>
+                    <?php endif; ?>
+                </div>
             </div>
             
             <?php if ($currentLesson['description']): ?>
             <div class="lesson-description">
+                <strong>Опис уроку:</strong><br>
                 <?= nl2br(htmlspecialchars($currentLesson['description'])) ?>
             </div>
             <?php endif; ?>
-            
-            <div class="lesson-actions">
-                <button class="btn-complete <?= $currentLesson['is_completed'] ? 'completed' : '' ?>" 
-                        onclick="markAsCompleted(<?= $currentLesson['id'] ?>)"
-                        <?= $currentLesson['is_completed'] ? 'disabled' : '' ?>>
-                    <?= $currentLesson['is_completed'] ? '✅ Завершено' : '✓ Відмітити як пройдений' ?>
-                </button>
-                
-                <?php
-                // Наступний урок
-                $nextLesson = $lessons[$currentLessonIndex + 1] ?? null;
-                ?>
-                
-                <?php if ($nextLesson): ?>
-                <a href="?id=<?= $courseId ?>&lesson=<?= $nextLesson['id'] ?>" class="btn-next">
-                    Наступний урок →
-                </a>
-                <?php endif; ?>
-            </div>
         </div>
         <?php endif; ?>
     </div>
@@ -490,6 +567,10 @@ include '../includes/header.php';
 
 <script>
 function markAsCompleted(lessonId) {
+    const btn = document.getElementById('complete-btn');
+    btn.disabled = true;
+    btn.textContent = 'Обробка...';
+    
     fetch('', {
         method: 'POST',
         headers: {
@@ -505,10 +586,8 @@ function markAsCompleted(lessonId) {
             document.getElementById('progress-percent').textContent = data.progress;
             
             // Оновлення кнопки
-            const btn = event.target;
             btn.textContent = '✅ Завершено';
             btn.classList.add('completed');
-            btn.disabled = true;
             
             // Оновлення списку уроків
             const lessonItem = document.querySelector('.lesson-item.active');
@@ -529,11 +608,17 @@ function markAsCompleted(lessonId) {
                     alert('🎉 Вітаємо! Ви завершили курс!');
                 }, 500);
             }
+        } else {
+            btn.disabled = false;
+            btn.textContent = '✓ Відмітити як пройдений';
+            alert('Помилка: ' + (data.message || 'Спробуйте ще раз'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Помилка. Спробуйте ще раз.');
+        btn.disabled = false;
+        btn.textContent = '✓ Відмітити як пройдений';
+        alert('Помилка підключення. Перевірте інтернет та спробуйте ще раз.');
     });
 }
 </script>

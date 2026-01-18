@@ -12,7 +12,7 @@ $db = Database::getInstance()->getConnection();
 
 // Отримання інформації про курс
 $stmt = $db->prepare("
-    SELECT c.*, u.first_name, u.last_name, u.bio, u.experience_years,
+    SELECT c.*, c.is_free, u.first_name, u.last_name, u.bio, u.experience_years,
            (SELECT AVG(rating) FROM reviews WHERE course_id = c.id) as avg_rating,
            (SELECT COUNT(*) FROM reviews WHERE course_id = c.id) as reviews_count,
            (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as students_count
@@ -422,9 +422,7 @@ include 'includes/header.php';
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <?php if ($lesson['is_free']): ?>
-                            <span style="color: #28a745; font-weight: 600;">🎁 Безкоштовно</span>
-                        <?php elseif (!$isEnrolled): ?>
+                        <?php if (!$isEnrolled): ?>
                             <span class="lesson-locked">🔒 Заблоковано</span>
                         <?php endif; ?>
                     </li>
@@ -491,12 +489,25 @@ include 'includes/header.php';
                         ✅ Ви записані на курс
                     </a>
                 <?php elseif (isLoggedIn()): ?>
-                    <a href="payment.php?course_id=<?= $course['id'] ?>" class="btn-enroll">
-                        🛒 Купити курс
-                    </a>
+                    <?php 
+                    $currentUser = getCurrentUser();
+                    // Тренери не можуть купувати курси
+                    if ($currentUser['role'] === 'trainer'): ?>
+                        <div class="btn-enroll" style="background: #6c757d; cursor: not-allowed;">
+                            Тренери не можуть купувати курси
+                        </div>
+                    <?php elseif ($course['is_free']): ?>
+                        <a href="enroll-free.php?course_id=<?= $course['id'] ?>" class="btn-enroll">
+                            🎁 Записатись безкоштовно
+                        </a>
+                    <?php else: ?>
+                        <a href="payment.php?course_id=<?= $course['id'] ?>" class="btn-enroll">
+                            🛒 Купити курс
+                        </a>
+                    <?php endif; ?>
                 <?php else: ?>
                     <a href="login.php" class="btn-enroll">
-                        Увійти для покупки
+                        Увійти для <?= $course['is_free'] ? 'запису' : 'покупки' ?>
                     </a>
                 <?php endif; ?>
                 
