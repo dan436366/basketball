@@ -375,7 +375,7 @@ include 'includes/header.php';
                 </div>
                 <div class="info-item">
                     <span class="info-label">Дата реєстрації:</span>
-                    <span class="info-value"><?= isset($user['created_at']) ? formatDate($user['created_at']) : 'Не вказано' ?></span>
+                    <span class="info-value"><?= !empty($user['created_at']) ? date('d.m.Y', strtotime($user['created_at'])) : 'Не вказано' ?></span>
                 </div>
             </div>
         </div>
@@ -439,7 +439,7 @@ include 'includes/header.php';
             
             <!-- Change Password Form -->
             <div class="form-card">
-                <h2 class="form-title">🔒 Зміна паролю</h2>
+                <h2 class="form-title">🔒 Зміна пароля</h2>
                 
                 <form method="POST">
                     <div class="form-group">

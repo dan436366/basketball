@@ -421,46 +421,34 @@ include '../includes/header.php';
         <?php if ($currentLesson): ?>
         <div class="video-container">
             <?php if ($currentLesson['video_file']): ?>
-                <!-- Локальний відеофайл -->
                 <?php
-                // Повний шлях до відео
+                // Шлях до відео
                 $videoFile = $currentLesson['video_file'];
-                $videoPath = BASE_URL . '/uploads/videos/' . $videoFile;
+                $videoPath = '/basketball/uploads/videos/' . $videoFile;
                 
-                // Визначення розширення та MIME-типу
+                // Визначення розширення
                 $videoExt = strtolower(pathinfo($videoFile, PATHINFO_EXTENSION));
                 
                 // Перевірка існування файлу
-                $fullPath = $_SERVER['DOCUMENT_ROOT'] . '/basketball/uploads/videos/' . $videoFile;
+                $fullPath = $_SERVER['DOCUMENT_ROOT'] . $videoPath;
                 $fileExists = file_exists($fullPath);
                 ?>
                 
                 <?php if ($fileExists): ?>
                 <div class="video-player">
-                    <video controls preload="auto" style="width: 100%; height: 100%; background: #000;">
-                        <?php if ($videoExt === 'mp4'): ?>
-                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/mp4">
-                        <?php elseif ($videoExt === 'webm'): ?>
-                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/webm">
-                        <?php elseif ($videoExt === 'avi'): ?>
-                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/x-msvideo">
-                        <?php elseif ($videoExt === 'mov'): ?>
-                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/quicktime">
-                        <?php else: ?>
-                            <source src="<?= htmlspecialchars($videoPath) ?>" type="video/<?= $videoExt ?>">
-                        <?php endif; ?>
+                    <video controls preload="metadata" style="width: 100%; height: 100%; background: #000;">
+                        <source src="<?= htmlspecialchars($videoPath) ?>" type="video/<?= $videoExt === 'mov' ? 'quicktime' : $videoExt ?>">
                         Ваш браузер не підтримує відтворення відео.
                     </video>
                 </div>
                 <?php else: ?>
                 <div class="video-placeholder">
                     <div class="video-placeholder-icon">⚠️</div>
-                    <p>Файл відео не знайдено на сервері</p>
-                    <small>Шлях: <?= htmlspecialchars($videoFile) ?></small>
+                    <p>Файл відео не знайдено</p>
+                    <small style="font-size: 0.8rem; opacity: 0.7;">Очікуваний шлях: <?= htmlspecialchars($fullPath) ?></small>
                 </div>
                 <?php endif; ?>
             <?php elseif ($currentLesson['video_url']): ?>
-                <!-- Зовнішнє відео -->
                 <?php
                 $videoUrl = $currentLesson['video_url'];
                 if (strpos($videoUrl, 'youtube.com') !== false || strpos($videoUrl, 'youtu.be') !== false) {
@@ -480,7 +468,7 @@ include '../includes/header.php';
                         allowfullscreen></iframe>
             <?php else: ?>
                 <div class="video-placeholder">
-                    <div class="video-placeholder-icon">📹</div>
+                    <div class="video-placeholder-icon">🎹</div>
                     <p>Відео ще не завантажено</p>
                 </div>
             <?php endif; ?>

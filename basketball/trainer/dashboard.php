@@ -114,6 +114,7 @@ include '../includes/header.php';
         border-radius: 8px;
         font-weight: 600;
         transition: all 0.3s;
+        cursor: pointer;
     }
     
     .trainer-nav-link:hover {
@@ -256,6 +257,8 @@ include '../includes/header.php';
         font-weight: 600;
         font-size: 0.9rem;
         transition: all 0.3s;
+        cursor: pointer;
+        display: inline-block;
     }
     
     .btn-edit {
@@ -335,10 +338,10 @@ include '../includes/header.php';
     <nav class="trainer-nav">
         <div class="trainer-nav-links">
             <a href="dashboard.php" class="trainer-nav-link active">📊 Огляд</a>
-            <a href="courses.php" class="trainer-nav-link">📚 Мої курси</a>
-            <a href="students.php" class="trainer-nav-link">👥 Учні</a>
-            <a href="plans.php" class="trainer-nav-link">📋 Плани тренувань</a>
-            <a href="reviews.php" class="trainer-nav-link">⭐ Відгуки</a>
+            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">📚 Мої курси</a>
+            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">👥 Учні</a>
+            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">📋 Плани тренувань</a>
+            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">⭐ Відгуки</a>
         </div>
     </nav>
     
@@ -408,7 +411,7 @@ include '../includes/header.php';
                     </div>
                 </div>
                 <div class="course-actions">
-                    <a href="course-edit.php?id=<?= $course['id'] ?>" class="btn-sm btn-edit">✏️ Редагувати</a>
+                    <a onclick="alert('Функція редагування в розробці'); return false;" class="btn-sm btn-edit">✏️ Редагувати</a>
                     <a href="../course.php?id=<?= $course['id'] ?>" class="btn-sm btn-view">👁️ Переглянути</a>
                     <a href="course-lessons.php?id=<?= $course['id'] ?>" class="btn-sm btn-view">🎥 Уроки</a>
                 </div>
