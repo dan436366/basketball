@@ -338,10 +338,10 @@ include '../includes/header.php';
     <nav class="trainer-nav">
         <div class="trainer-nav-links">
             <a href="dashboard.php" class="trainer-nav-link active">📊 Огляд</a>
-            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">📚 Мої курси</a>
-            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">👥 Учні</a>
-            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">📋 Плани тренувань</a>
-            <a onclick="alert('Сторінка в розробці'); return false;" class="trainer-nav-link">⭐ Відгуки</a>
+            <a href="courses.php" class="trainer-nav-link">📚 Мої курси</a>
+            <a href="students.php" class="trainer-nav-link">👥 Учні</a>
+            <a href="plans.php" class="trainer-nav-link">📋 Плани тренувань</a>
+            <a href="reviews.php" class="trainer-nav-link">⭐ Відгуки</a>
         </div>
     </nav>
     
